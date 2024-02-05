@@ -8,7 +8,9 @@ load_dotenv(find_dotenv())
 
 from handlers.client import user_router
 from base.command_list import command_user_list
+from database.create_db import connect_to_database
 
+connect_to_database()
 bot = Bot(token=os.getenv('BOT_TOKEN'))    
 dp = Dispatcher()
 
