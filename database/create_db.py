@@ -22,7 +22,7 @@ def connect_to_database():
     
     cur.execute('''
         CREATE TABLE IF NOT EXISTS clients (
-            id SERIAL PRIMARY KEY,
+            id INT PRIMARY KEY,
             user_fio VARCHAR(100),
             manager_id INT NULL,
             FOREIGN KEY(manager_id) REFERENCES managers(id) ON DELETE SET NULL)''')
@@ -32,7 +32,7 @@ def connect_to_database():
             id SERIAL PRIMARY KEY,
             client_id INT,
             descr TEXT,
-            weight NUMERIC(10,3),
+            weight VARCHAR(20),
             size TEXT, 
             addr_from TEXT,
             addr_to TEXT, 
@@ -42,31 +42,56 @@ def connect_to_database():
     cur.execute('''
         CREATE TABLE IF NOT EXISTS pretences (
             id SERIAL PRIMARY KEY,
-            client_id INT NULL,
-            id_invoice INT NULL,
+            client_id INT,
+            id_invoice INT,
             email VARCHAR(100), 
             desc_pret TEXT,
-            summa NUMERIC(10,2),
+            summa text,
             photo TEXT,                
             FOREIGN KEY(client_id) REFERENCES clients(id) ON DELETE CASCADE,
             FOREIGN KEY(id_invoice) REFERENCES invoices(id) ON DELETE CASCADE)''')
+    
+    cur.execute('''
+        CREATE TABLE IF NOT EXISTS client_manager (
+            manager_id INT,
+            client_id INT,     
+            PRIMARY KEY(manager_id, client_id), 
+            FOREIGN KEY(client_id) REFERENCES clients(id),
+            FOREIGN KEY(manager_id) REFERENCES managers(id))''')
+    conn.commit()
+
+
+
+async def add_invoices(data):
+    cur.execute('''INSERT INTO invoices (client_id, descr, weight, size, addr_from, addr_to, way_to_py) VALUES (%s, %s, %s, %s, %s, %s, %s )''', tuple(data.values()))
+    conn.commit()
+    cur.execute("SELECT currval(pg_get_serial_sequence('invoices','id'))") 
+    last = cur.fetchone()
+    return last
+
+async def add_pretences(data):
+    cur.execute('''INSERT INTO pretences (client_id, id_invoice, email, desc_pret, summa, photo) VALUES (%s, %s, %s, %s, %s, %s)''', tuple(data.values()))
+    conn.commit()
+
+
+async def reg_client(client):
+    cur.execute('''INSERT INTO clients (id, user_fio,manager_id) VALUES (%s, %s,  %s)''', client)
     conn.commit()
    
 
-def register_user(user):
-    cur.execute('''INSERT INTO users (user_id, user_name, group_name) VALUES (%s, %s, %s)''', user)
-    conn.commit()
 
-def check_user(user_id):
-    cur.execute("SELECT * FROM users WHERE user_id = %s", (user_id,)) 
-    user = cur.fetchone()
-    return user 
+async def find_manager():
+    cur.execute("select manager_id from client_manager group by manager_id order by count(client_id) asc limit 1;") 
+    manager = cur.fetchone()
+    return manager
 
-def select_groups(group_name):
-    cur.execute("SELECT user_id FROM users WHERE group_name = %s", (group_name,)) 
-    users = cur.fetchone()
-    return users 
+async def select_manager(client_id):
+    cur.execute("SELECT manager_id FROM clients WHERE id = %s", (client_id,)) 
+    man_id = cur.fetchone()
+    return man_id
 
-async def insert_data(data):
-    cur.execute('''INSERT INTO dialog (person_name, person, assistant) VALUES (%s, %s, %s)''', data)
-    conn.commit()
+
+async def select_client(client_id):
+    cur.execute("SELECT count(*) FROM clients WHERE id = %s", (client_id,)) 
+    count = cur.fetchone()
+    return count

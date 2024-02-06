@@ -2,18 +2,44 @@ from aiogram import types, Router, F
 from aiogram.filters import CommandStart, Command, StateFilter
 from aiogram.fsm.context import FSMContext
 from base.class_fms import CreateInvoice, CreatePretence
+from database.create_db import add_invoices, add_pretences, reg_client, find_manager, select_manager, select_client
+from keyboards.create_kbd import builder_pret, keyboard
+from create_pdf import simple_table
+from aiogram.types import FSInputFile
+
+
 user_router = Router()
 
 
+MANADER_ID = None
 
 
 @user_router.message(CommandStart())
 async def start_cmd(message: types.Message):
-    await message.answer('Hi!')
+    isexist = await select_client(message.from_user.id)
+    if isexist == 0 :
+        await message.answer('Здравствуйте, вы хотите стать нашим клиентом? (ДА/НЕТ)')
+        return
+    await message.answer('''Здравствуйте, снова рады вас видеть!\nДоступные вам команды:\n/Накладная - создание накладной\n/Претензия - написание претензии\n/Менеджер -  вызов менеджера в чат''', reply_markup=keyboard)
+    
+@user_router.message((F.text.casefold() == 'да') | (F.text.casefold() == 'нет'))
+async def reg_cmd(message: types.Message):
+    if message.text.casefold() == 'нет':
+        await message.answer('''К сожалению вам не будет доспупен весь функционал.\nЧтобы изменить свое решение, заново пропишите команду /start''')
+        return
+    global MANADER_ID
+    # MANADER_ID = await find_manager()
+    # await reg_client((message.from_user.id, message.from_user.username, MANADER_ID))
+    await message.answer(f'''Поздравляем теперь вы наш клиент!\nДоступные вам команды:\n/Накладная - создание накладной\n/Претензия - написание претензии\n/Менеджер -  вызов менеджера в чат''', reply_markup=keyboard)
+    
+
+
 
 # ----------------------------------Create invoice-----------------------------------
 @user_router.message(StateFilter(None), Command('Накладная'))
+@user_router.message(StateFilter(None), F.text.casefold() == 'накладная')
 async def invoice_cmd(message: types.Message, state:FSMContext):
+    await state.update_data(client_id=message.from_user.id)
     await message.answer('Введите описание груза')
     await state.set_state(CreateInvoice.product)
 
@@ -89,7 +115,12 @@ async def add_way_pay(message: types.Message, state:FSMContext):
     await state.update_data(way_to_pay=message.text)
     await message.answer('Накладная успешно создана!!!')
     data = await state.get_data()
-    await message.answer(str(data))
+    last_id = await add_invoices(data=data)
+    simple_table(data, num_inv=last_id[0])
+    doc = FSInputFile(f'invoice-{last_id[0]}.pdf')
+    # doc = (open(f'invoice-{message.from_user.id}.pdf'), 'rb')
+    await message.answer_document(doc, caption=f'Накладная №{last_id[0]}')
+    await add_invoices(data=data)
     await state.clear()
 
 
@@ -97,8 +128,11 @@ async def add_way_pay(message: types.Message, state:FSMContext):
 #---------------------------Create pretence-------------------------
 
 @user_router.message(StateFilter(None), Command('Претензия'))
+@user_router.message(StateFilter(None), F.text.casefold() == 'претензия')
 async def pretence_cmd(message: types.Message, state:FSMContext):
+    await state.update_data(client_id=message.from_user.id)
     await message.answer('Введите номер накладной')
+    # список накладный клиента
     await state.set_state(CreatePretence.id_invoice)
 
 
@@ -107,7 +141,7 @@ async def pretence_cmd(message: types.Message, state:FSMContext):
 @user_router.message(CreatePretence.id_invoice, F.text)
 async def add_id_product(message: types.Message, state:FSMContext):
     #Реализовать проверку в БД существует ли данная накладная 
-    await state.update_data(id_product=message.text)
+    await state.update_data(id_product=int(message.text))
     await message.answer('Введите email для связи')
     await state.set_state(CreatePretence.email)
 
@@ -120,12 +154,12 @@ async def add_email(message: types.Message, state:FSMContext):
 @user_router.message(CreatePretence.desc, F.text)
 async def add_desc(message: types.Message, state:FSMContext):
     await state.update_data(desc=message.text)
-    await message.answer('Введите требуемую сумму')
+    await message.answer('Введите требуемую сумму в рублях')
     await state.set_state(CreatePretence.summa)
 
 @user_router.message(CreatePretence.summa, F.text)
 async def add_summa(message: types.Message, state:FSMContext):
-    await state.update_data(summa=message.text)
+    await state.update_data(summa=float(message.text))
     await message.answer('Пришлите фото/скан')
     await state.set_state(CreatePretence.photo)
 
@@ -134,14 +168,23 @@ async def add_photo(message: types.Message, state:FSMContext):
     await state.update_data(photo=message.photo[-1].file_id)
     await message.answer('Готово. Претензия будет доставлена менеждеру.')
     date =  await state.get_data()
-    await message.answer(str(date))
+    await add_pretences(data=date)
+    global MANADER_ID
+    if MANADER_ID is None:
+        MANADER_ID = await select_manager(message.from_user.id)
+    await message.bot.send_message(MANADER_ID[0], f"Была создна претензия от пользователя {message.from_user.username} на накладную N{date['id_product']}")  
     await state.clear()
 
 #----------------Call manager-------------------------------
 
 
 @user_router.message(Command('Менеджер'))
+@user_router.message(StateFilter(None), F.text.casefold() == 'менеджер')
 async def manager_cmd(message: types.Message):
+    global MANADER_ID
+    if MANADER_ID is None:
+        MANADER_ID = await select_manager(message.from_user.id)
+    await message.bot.send_message(MANADER_ID[0], f'Пользователь {message.from_user.id} вызвал вас в чат {message.date}!', reply_markup=builder_pret.as_markup())
     await message.answer('Ваш менеджер скоро войдет в чат')
 
 

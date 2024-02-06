@@ -29,14 +29,14 @@ class CreatePretence(StatesGroup):
     desc = State()
     summa = State()
     photo = State()
+    send = State()
 
     texts = {
         'CreatePretence:id_invoice' : 'Введите номер накладной заново',
         'CreatePretence:email' : 'Введите email заново',
         'CreatePretence:desc' : 'Введите описание ситуации заново',
         'CreatePretence:summa' : 'Введите требуемую сумму заново',
-        'CreatePretence:photo' : 'Повторно пришлите фото/скан',
-        
+        'CreatePretence:photo' : 'Повторно пришлите фото/скан',  
     }
 
     def __eq__(slc, other):
