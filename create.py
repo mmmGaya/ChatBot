@@ -24,16 +24,7 @@ dp.include_router(manager_router)
 
 async def main():
     await bot.delete_webhook(drop_pending_updates=True)
-    # await bot.set_my_commands(commands=command_user_list, scope=types.BotCommandScopeAllPrivateChats())
-    # await bot.set_my_commands(command_user_list)
-
     await dp.start_polling(bot, allowed_updates=['message, edited_message'])
-
-
-
-
-
-
 
 
 asyncio.run(main())
