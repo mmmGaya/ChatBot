@@ -1,9 +1,6 @@
 from fpdf import FPDF
 
 
-
-
- 
 def simple_table(dt_inf, num_inv, spacing=1):
     data = [['Описание груза', 'Вес', 'Габариты', 'Адресс отправки', 'Адресс получения', 'Способ оплаты'],
             ['', '', '', '', '', ''],
@@ -16,9 +13,9 @@ def simple_table(dt_inf, num_inv, spacing=1):
     
     lst_info = list(dt_inf.values())
 
-    
-    # for i in range(6):
-    #     data[1][i] = lst_info[i+1]
+    for i in range(6):
+        data[1][i] = lst_info[i+1]
+
     
     pdf = FPDF()
     pdf.add_font('Open_Sans', '', 'font/OpenSans_Condensed-Regular.ttf', uni=True)
@@ -38,4 +35,3 @@ def simple_table(dt_inf, num_inv, spacing=1):
  
     pdf.output(f'invoice-{num_inv}.pdf')
 
-simple_table({'sssqwq':'w21q1111', 'sssq4wq':'w21q1111', 'ss3sqwq':'w21q1111', 's4ssqwq':'w21q1111', 'ss33sqwq':'w21q1111', 'ssffffsqwq':'w21q1111'}, 2)
