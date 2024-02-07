@@ -8,7 +8,6 @@ load_dotenv(find_dotenv())
 
 from handlers.client import user_router
 from handlers.manager import manager_router
-from handlers.comein import start_router
 from database.create_db import connect_to_database
 
 connect_to_database()
