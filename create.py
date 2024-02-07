@@ -16,7 +16,7 @@ bot = Bot(token=os.getenv('BOT_TOKEN'))
 dp = Dispatcher()
 
 
-dp.include_router(start_router)
+
 dp.include_router(user_router)
 dp.include_router(manager_router)
 

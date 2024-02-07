@@ -93,4 +93,4 @@ async def select_manager(client_id):
 async def select_client(client_id):
     cur.execute("SELECT count(*) FROM clients WHERE id = %s", (client_id,)) 
     count = cur.fetchone()
-    return count
+    return count[0]

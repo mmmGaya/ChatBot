@@ -1,18 +1,39 @@
 import os
 
 from aiogram import types, Router, F
-from aiogram.filters import Command, StateFilter
+from aiogram.filters import Command, StateFilter, CommandStart
 from aiogram.fsm.context import FSMContext
 from aiogram.types import FSInputFile
 
 from base.class_fms import CreateInvoice, CreatePretence
-from database.create_db import add_invoices, add_pretences, select_manager
-from keyboards.create_kbd import builder_pret
+from database.create_db import add_invoices, add_pretences, select_manager, select_client,  reg_client, find_manager
+from keyboards.create_kbd import builder_pret, keyboard
 from create_pdf import simple_table
-from handlers.comein import MANADER_ID
+
 
 
 user_router = Router()
+
+MANADER_ID = None
+
+@user_router.message(CommandStart())
+async def start_cmd(message: types.Message):
+    isexist = await select_client(message.from_user.id)
+    if isexist == 0 :
+        await message.answer('Здравствуйте, вы хотите стать нашим клиентом? (ДА/НЕТ)')
+        return
+    await message.answer('''Здравствуйте, снова рады вас видеть!\nДоступные вам команды:\n/Накладная - создание накладной\n/Претензия - написание претензии\n/Менеджер -  вызов менеджера в чат''', reply_markup=keyboard)
+    
+@user_router.message((F.text.casefold() == 'да') | (F.text.casefold() == 'нет'))
+async def reg_cmd(message: types.Message):
+    if message.text.casefold() == 'нет':
+        await message.answer('''К сожалению вам не будет доспупен весь функционал.\nЧтобы изменить свое решение, заново пропишите команду /start''')
+        return
+    global MANADER_ID
+    MANADER_ID = await find_manager()
+    await reg_client((message.from_user.id, message.from_user.username, MANADER_ID))
+    await message.answer(f'''Поздравляем теперь вы наш клиент!\nДоступные вам команды:\n/Накладная - создание накладной\n/Претензия - написание претензии\n/Менеджер -  вызов менеджера в чат''', reply_markup=keyboard)
+    
 
 
 # ----------------------------------Create invoice-----------------------------------
@@ -149,6 +170,9 @@ async def add_photo(message: types.Message, state:FSMContext):
     global MANADER_ID
     if MANADER_ID is None:
         MANADER_ID = await select_manager(message.from_user.id)
+    if MANADER_ID is None:
+        await message.answer('К сожалению, к вам еще не прикреплен менеджер. Но мы сохранили вашу претензию.')
+        return
     await message.bot.send_message(MANADER_ID[0], f"Была создна претензия от пользователя {message.from_user.username} на накладную N{date['id_product']}")  
     await state.clear()
 
@@ -163,6 +187,7 @@ async def manager_cmd(message: types.Message):
         MANADER_ID = await select_manager(message.from_user.id)
     if MANADER_ID is None:
         await message.answer('К сожалению, к вам еще не прикреплен менеджер.')#заглушка
+        return
     await message.bot.send_message(MANADER_ID[0], f'Пользователь {message.from_user.id} вызвал вас в чат {message.date.strftime("%H:%M:%S")}!', reply_markup=builder_pret.as_markup())
     await message.answer('Ваш менеджер скоро войдет в чат')
 
