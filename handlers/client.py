@@ -1,38 +1,18 @@
+import os
+
 from aiogram import types, Router, F
-from aiogram.filters import CommandStart, Command, StateFilter
+from aiogram.filters import Command, StateFilter
 from aiogram.fsm.context import FSMContext
-from base.class_fms import CreateInvoice, CreatePretence
-from database.create_db import add_invoices, add_pretences, reg_client, find_manager, select_manager, select_client
-from keyboards.create_kbd import builder_pret, keyboard
-from create_pdf import simple_table
 from aiogram.types import FSInputFile
+
+from base.class_fms import CreateInvoice, CreatePretence
+from database.create_db import add_invoices, add_pretences, select_manager
+from keyboards.create_kbd import builder_pret
+from create_pdf import simple_table
+from handlers.comein import MANADER_ID
 
 
 user_router = Router()
-
-
-MANADER_ID = None
-
-
-@user_router.message(CommandStart())
-async def start_cmd(message: types.Message):
-    isexist = await select_client(message.from_user.id)
-    if isexist == 0 :
-        await message.answer('Здравствуйте, вы хотите стать нашим клиентом? (ДА/НЕТ)')
-        return
-    await message.answer('''Здравствуйте, снова рады вас видеть!\nДоступные вам команды:\n/Накладная - создание накладной\n/Претензия - написание претензии\n/Менеджер -  вызов менеджера в чат''', reply_markup=keyboard)
-    
-@user_router.message((F.text.casefold() == 'да') | (F.text.casefold() == 'нет'))
-async def reg_cmd(message: types.Message):
-    if message.text.casefold() == 'нет':
-        await message.answer('''К сожалению вам не будет доспупен весь функционал.\nЧтобы изменить свое решение, заново пропишите команду /start''')
-        return
-    global MANADER_ID
-    # MANADER_ID = await find_manager()
-    # await reg_client((message.from_user.id, message.from_user.username, MANADER_ID))
-    await message.answer(f'''Поздравляем теперь вы наш клиент!\nДоступные вам команды:\n/Накладная - создание накладной\n/Претензия - написание претензии\n/Менеджер -  вызов менеджера в чат''', reply_markup=keyboard)
-    
-
 
 
 # ----------------------------------Create invoice-----------------------------------
@@ -66,7 +46,7 @@ async def prev_cmd(message: types.Message, state:FSMContext):
 
 
     if cur_state == cur_class():
-        await message.answer(f'Предыдушего шага нет, если хотите выйти напишите "отмена"')
+        await message.answer(f'Предыдущего шага нет, если хотите выйти напишите "отмена"')
         return 
     
     prev = None
@@ -118,9 +98,8 @@ async def add_way_pay(message: types.Message, state:FSMContext):
     last_id = await add_invoices(data=data)
     simple_table(data, num_inv=last_id[0])
     doc = FSInputFile(f'invoice-{last_id[0]}.pdf')
-    # doc = (open(f'invoice-{message.from_user.id}.pdf'), 'rb')
     await message.answer_document(doc, caption=f'Накладная №{last_id[0]}')
-    await add_invoices(data=data)
+    os.remove(f'invoice-{last_id[0]}.pdf')
     await state.clear()
 
 
@@ -132,7 +111,6 @@ async def add_way_pay(message: types.Message, state:FSMContext):
 async def pretence_cmd(message: types.Message, state:FSMContext):
     await state.update_data(client_id=message.from_user.id)
     await message.answer('Введите номер накладной')
-    # список накладный клиента
     await state.set_state(CreatePretence.id_invoice)
 
 
@@ -140,7 +118,6 @@ async def pretence_cmd(message: types.Message, state:FSMContext):
 
 @user_router.message(CreatePretence.id_invoice, F.text)
 async def add_id_product(message: types.Message, state:FSMContext):
-    #Реализовать проверку в БД существует ли данная накладная 
     await state.update_data(id_product=int(message.text))
     await message.answer('Введите email для связи')
     await state.set_state(CreatePretence.email)
@@ -184,7 +161,7 @@ async def manager_cmd(message: types.Message):
     global MANADER_ID
     if MANADER_ID is None:
         MANADER_ID = await select_manager(message.from_user.id)
-    await message.bot.send_message(MANADER_ID[0], f'Пользователь {message.from_user.id} вызвал вас в чат {message.date}!', reply_markup=builder_pret.as_markup())
+    await message.bot.send_message(MANADER_ID[0], f'Пользователь {message.from_user.id} вызвал вас в чат {message.date.strftime("%H:%M:%S")}!', reply_markup=builder_pret.as_markup())
     await message.answer('Ваш менеджер скоро войдет в чат')
 
 
