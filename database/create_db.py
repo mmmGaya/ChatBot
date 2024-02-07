@@ -77,7 +77,6 @@ async def add_pretences(data):
 async def reg_client(client):
     cur.execute('''INSERT INTO clients (id, user_fio,manager_id) VALUES (%s, %s,  %s)''', client)
     conn.commit()
-   
 
 
 async def find_manager():

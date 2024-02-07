@@ -161,6 +161,8 @@ async def manager_cmd(message: types.Message):
     global MANADER_ID
     if MANADER_ID is None:
         MANADER_ID = await select_manager(message.from_user.id)
+    if MANADER_ID is None:
+        await message.answer('К сожалению, к вам еще не прикреплен менеджер.')#заглушка
     await message.bot.send_message(MANADER_ID[0], f'Пользователь {message.from_user.id} вызвал вас в чат {message.date.strftime("%H:%M:%S")}!', reply_markup=builder_pret.as_markup())
     await message.answer('Ваш менеджер скоро войдет в чат')
 

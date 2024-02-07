@@ -6,7 +6,8 @@ kb = [
     [
         KeyboardButton(text='/Накладная'),
         KeyboardButton(text='/Претензия'),
-        KeyboardButton(text='/Менеджер')
+        KeyboardButton(text='/Менеджер'),
+
     ],
 ]
 
